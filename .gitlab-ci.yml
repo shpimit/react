@@ -1,0 +1,52 @@
+stages:
+  - build
+  - deploy
+
+build_webapp:
+  stage: build
+#  image: gradle:7.4.1-jdk8
+  image: 16.14-alpine
+
+#  before_script:
+#    - curl --silent --location https://rpm.nodesource.com/setup_8.x | sudo bash -
+#    - sudo yum install -y nodejs
+#    - npm install --global yarn
+
+  script:
+    - echo "start build gradle "
+    - cd ./spa
+    - yarn build
+    - cd ..
+    - cp spa/build build/resources/main/static
+    - chmod +x gradle
+    - gradle clean build
+    - echo "end build gradle "
+
+  artifacts:
+    paths:
+      - build/libs/*.jar
+
+  tags:
+    - docker
+
+dockerbuild:
+  stage: deploy
+
+  dependencies:
+    - build_webapp
+
+  before_script:
+    - docker login -u $DOCKER_HUB_USER --password-stdin < $DOCKER_HUB_PW
+    - echo "docker login succeeded"
+
+  script:
+    - docker build -t shpimit/${project.name}:${project.version} ${project.name}
+    - echo "docker build succeeded"
+    - docker push shpimit/${project.name}:${project.version}
+
+  after_script:
+    - docker logout
+    - echo "docker logout succeeded"
+
+  tags:
+    - docker
